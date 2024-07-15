@@ -1,0 +1,57 @@
+---
+ - host : all
+  become : target
+  connection : aws 
+
+   vars:
+  aws_access_key: "{{ lookup ('env', 'aws_access_key') }}"
+
+  aws_secret_key: "{{ lookup ('env', 'aws_access_key') }}"
+
+  region: "{{ lookup(' ('env', 'AWS_REGION')}}"
+
+  tasks:
+  - name : include specific role based on hostname
+    include_tasks: "{{ lookup( 'template', '{{ ansible_hostname}}.yml' ) }}"
+
+  - hosts: eks_cluster
+    roles:
+      - eks # Replace with your custom EKS role
+
+  - hosts: ec2_instances
+    roles:
+      -ec2 # Replace with your custom EC2 role
+
+   - hosts: load_balancers
+     roles:
+       - elbv2 # Replace with your custom ELBv2 role
+
+# Role Definitions (example.yml)#
+   - name: eks.yml
+  tasks:
+       - name: Get EKS Cluster info
+         aws_eks_cluster_facts:
+           name: "{{ eks_cluster_name }}"
+         register: eks_cluster
+
+        - debug:
+           msg: "EKS Cluster Name: {{ eks_cluster.cluster.name }}"
+         - name: ec2.yml
+  tasks: 
+      - name: Get EC2 Instance info
+      ec2_info:
+        filters:
+           instance-id: "{[ ansible_host]}"
+        register: ec2_instances
+
+      - debug:
+          msg:  "EC2 Instance ID: {{ ec2_instance.instance.id }}"
+      - name: elbv2.yml
+   tasks:
+      - name: Get Load Balancer info
+      aws_lbv2_load_balancer_facts:
+            name: " { { ansible_hostname}}"
+          register: elb_info
+
+        - debug:
+            msg: " Load Balancer DNS Name : {{ elb_info.load_balancer.dns_name }}"
